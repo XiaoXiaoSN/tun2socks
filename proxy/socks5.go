@@ -7,9 +7,10 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/xjasonlyu/clash/component/socks5"
 	"github.com/xjasonlyu/tun2socks/common/adapter"
 	"github.com/xjasonlyu/tun2socks/common/gonet"
+
+	"github.com/Dreamacro/clash/component/socks5"
 )
 
 type Socks5 struct {

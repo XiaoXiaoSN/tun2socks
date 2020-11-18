@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/xjasonlyu/clash/common/observable"
+	"github.com/Dreamacro/clash/common/observable"
 )
 
 var (

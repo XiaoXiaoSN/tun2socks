@@ -5,7 +5,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/xjasonlyu/clash/component/socks5"
+	"github.com/Dreamacro/clash/component/socks5"
 )
 
 const (
