@@ -3,7 +3,6 @@ package stack
 import (
 	"fmt"
 	"net"
-	_ "unsafe"
 
 	"github.com/xjasonlyu/tun2socks/common/adapter"
 
@@ -104,7 +103,10 @@ func (p *udpPacket) WriteBack(b []byte, addr net.Addr) (int, error) {
 	data := v.ToVectorisedView()
 	// if addr is not provided, write back use original dst Addr as src Addr.
 	if addr == nil {
-		return _sendUDP(p.r, data, p.id.LocalPort, p.id.RemotePort, udpNoChecksum)
+		if err := sendUDP(p.r, data, p.id.LocalPort, p.id.RemotePort, udpNoChecksum); err != nil {
+			return 0, fmt.Errorf("%v", err)
+		}
+		return data.Size(), nil
 	}
 
 	udpAddr, ok := addr.(*net.UDPAddr)
@@ -120,27 +122,74 @@ func (p *udpPacket) WriteBack(b []byte, addr net.Addr) (int, error) {
 	} else {
 		r.LocalAddress = tcpip.Address(udpAddr.IP)
 	}
-	return _sendUDP(&r, data, uint16(udpAddr.Port), p.id.RemotePort, udpNoChecksum)
-}
 
-// _sendUDP wraps sendUDP with some default parameters.
-func _sendUDP(r *stack.Route, data buffer.VectorisedView, localPort, remotePort uint16, noChecksum bool) (int, error) {
-	if err := sendUDP(r, data, localPort, remotePort, 0 /* ttl */, true /* useDefaultTTL */, 0 /* tos */, nil /* owner */, noChecksum); err != nil {
-		return 0, fmt.Errorf("%s", err)
+	if err := sendUDP(&r, data, uint16(udpAddr.Port), p.id.RemotePort, udpNoChecksum); err != nil {
+		return 0, fmt.Errorf("%v", err)
 	}
 	return data.Size(), nil
 }
 
 // sendUDP sends a UDP segment via the provided network endpoint and under the
 // provided identity.
-//
-//go:linkname sendUDP gvisor.dev/gvisor/pkg/tcpip/transport/udp.sendUDP
-func sendUDP(r *stack.Route, data buffer.VectorisedView, localPort, remotePort uint16, ttl uint8, useDefaultTTL bool, tos uint8, owner tcpip.PacketOwner, noChecksum bool) *tcpip.Error
+func sendUDP(r *stack.Route, data buffer.VectorisedView, localPort, remotePort uint16, noChecksum bool) *tcpip.Error {
+	pkt := stack.NewPacketBuffer(stack.PacketBufferOptions{
+		ReserveHeaderBytes: header.UDPMinimumSize + int(r.MaxHeaderLength()),
+		Data:               data,
+	})
+
+	// Initialize the UDP header.
+	udpHdr := header.UDP(pkt.TransportHeader().Push(header.UDPMinimumSize))
+	pkt.TransportProtocolNumber = udp.ProtocolNumber
+
+	length := uint16(pkt.Size())
+	udpHdr.Encode(&header.UDPFields{
+		SrcPort: localPort,
+		DstPort: remotePort,
+		Length:  length,
+	})
+
+	// Set the checksum field unless TX checksum offload is enabled.
+	// On IPv4, UDP checksum is optional, and a zero value indicates the
+	// transmitter skipped the checksum generation (RFC768).
+	// On IPv6, UDP checksum is not optional (RFC2460 Section 8.1).
+	if r.RequiresTXTransportChecksum() &&
+		(!noChecksum || r.NetProto == header.IPv6ProtocolNumber) {
+		xsum := r.PseudoHeaderChecksum(udp.ProtocolNumber, length)
+		for _, v := range data.Views() {
+			xsum = header.Checksum(v, xsum)
+		}
+		udpHdr.SetChecksum(^udpHdr.CalculateChecksum(xsum))
+	}
+
+	ttl := r.DefaultTTL()
+
+	if err := r.WritePacket(nil /* gso */, stack.NetworkHeaderParams{
+		Protocol: udp.ProtocolNumber,
+		TTL:      ttl,
+		TOS:      0, /* default */
+	}, pkt); err != nil {
+		r.Stats().UDP.PacketSendErrors.Increment()
+		return err
+	}
+
+	// Track count of packets sent.
+	r.Stats().UDP.PacketsSent.Increment()
+	return nil
+}
 
 // verifyChecksum verifies the checksum unless RX checksum offload is enabled.
 // On IPv4, UDP checksum is optional, and a zero value means the transmitter
 // omitted the checksum generation (RFC768).
 // On IPv6, UDP checksum is not optional (RFC2460 Section 8.1).
-//
-//go:linkname verifyChecksum gvisor.dev/gvisor/pkg/tcpip/transport/udp.verifyChecksum
-func verifyChecksum(hdr header.UDP, pkt *stack.PacketBuffer) bool
+func verifyChecksum(hdr header.UDP, pkt *stack.PacketBuffer) bool {
+	if !pkt.RXTransportChecksumValidated &&
+		(hdr.Checksum() != 0 || pkt.NetworkProtocolNumber == header.IPv6ProtocolNumber) {
+		netHdr := pkt.Network()
+		xsum := header.PseudoHeaderChecksum(udp.ProtocolNumber, netHdr.DestinationAddress(), netHdr.SourceAddress(), hdr.Length())
+		for _, v := range pkt.Data.Views() {
+			xsum = header.Checksum(v, xsum)
+		}
+		return hdr.CalculateChecksum(xsum) == 0xffff
+	}
+	return true
+}
