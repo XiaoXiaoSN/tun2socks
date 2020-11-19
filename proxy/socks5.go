@@ -36,7 +36,7 @@ func (ss *Socks5) DialContext(ctx context.Context, metadata *adapter.Metadata) (
 	gonet.SetKeepAlive(c)
 
 	defer func() {
-		if err != nil {
+		if err != nil && c != nil {
 			c.Close()
 		}
 	}()
@@ -49,10 +49,7 @@ func (ss *Socks5) DialContext(ctx context.Context, metadata *adapter.Metadata) (
 		}
 	}
 
-	if _, err := socks5.ClientHandshake(c, metadata.SerializesSocksAddr(), socks5.CmdConnect, user); err != nil {
-		return nil, fmt.Errorf("client hanshake: %w", err)
-	}
-
+	_, err = socks5.ClientHandshake(c, metadata.SerializesSocksAddr(), socks5.CmdConnect, user)
 	return
 }
 
@@ -68,7 +65,7 @@ func (ss *Socks5) DialUDP(_ *adapter.Metadata) (_ net.PacketConn, err error) {
 	gonet.SetKeepAlive(c)
 
 	defer func() {
-		if err != nil {
+		if err != nil && c != nil {
 			c.Close()
 		}
 	}()
@@ -98,7 +95,7 @@ func (ss *Socks5) DialUDP(_ *adapter.Metadata) (_ net.PacketConn, err error) {
 
 	pc, err := gonet.ListenPacket("udp", "")
 	if err != nil {
-		return
+		return nil, fmt.Errorf("listen packet: %w", err)
 	}
 
 	go func() {

@@ -39,7 +39,7 @@ func (ss *ShadowSocks) DialContext(ctx context.Context, metadata *adapter.Metada
 	gonet.SetKeepAlive(c)
 
 	defer func() {
-		if err != nil {
+		if err != nil && c != nil {
 			c.Close()
 		}
 	}()
@@ -52,7 +52,7 @@ func (ss *ShadowSocks) DialContext(ctx context.Context, metadata *adapter.Metada
 func (ss *ShadowSocks) DialUDP(_ *adapter.Metadata) (net.PacketConn, error) {
 	pc, err := gonet.ListenPacket("udp", "")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listen packet: %w", err)
 	}
 
 	udpAddr, err := gonet.ResolveUDPAddr("udp", ss.Addr())
