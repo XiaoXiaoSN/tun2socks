@@ -10,6 +10,8 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
+var _ stack.LinkEndpoint = (*Endpoint)(nil)
+
 // Endpoint implements the interface of stack.LinkEndpoint from io.ReadWriter.
 type Endpoint struct {
 	// rw is the io.ReadWriter for reading and writing packets.
