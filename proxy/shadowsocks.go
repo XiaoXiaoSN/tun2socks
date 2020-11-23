@@ -8,8 +8,8 @@ import (
 
 	"github.com/xjasonlyu/tun2socks/common/adapter"
 	"github.com/xjasonlyu/tun2socks/common/gonet"
+	"github.com/xjasonlyu/tun2socks/common/socks5"
 
-	"github.com/Dreamacro/clash/component/socks5"
 	"github.com/Dreamacro/go-shadowsocks2/core"
 )
 

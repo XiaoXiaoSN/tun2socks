@@ -9,8 +9,7 @@ import (
 
 	"github.com/xjasonlyu/tun2socks/common/adapter"
 	"github.com/xjasonlyu/tun2socks/common/gonet"
-
-	"github.com/Dreamacro/clash/component/socks5"
+	"github.com/xjasonlyu/tun2socks/common/socks5"
 )
 
 type Socks5 struct {
