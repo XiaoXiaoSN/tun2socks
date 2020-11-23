@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Dreamacro/clash/common/observable"
+	"github.com/xjasonlyu/tun2socks/common/observable"
 )
 
 var (
