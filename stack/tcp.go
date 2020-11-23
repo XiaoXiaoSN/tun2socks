@@ -68,9 +68,7 @@ func withTCPHandler() Option {
 }
 
 func setKeepalive(ep tcpip.Endpoint) error {
-	if err := ep.SetSockOptBool(tcpip.KeepaliveEnabledOption, true); err != nil {
-		return fmt.Errorf("set keepalive: %s", err)
-	}
+	ep.SocketOptions().SetKeepAlive(true)
 	idle := tcpip.KeepaliveIdleOption(tcpKeepaliveIdle)
 	if err := ep.SetSockOpt(&idle); err != nil {
 		return fmt.Errorf("set keepalive idle: %s", err)
