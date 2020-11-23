@@ -1,6 +1,6 @@
 package stats
 
-// Ref: https://github.com/Dreamacro/clash/blob/master/hub/route/errors.go
+// Ref: github.com/Dreamacro/clash/hub/route
 
 var (
 	ErrUnauthorized   = newError("Unauthorized")

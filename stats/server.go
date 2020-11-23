@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xjasonlyu/tun2socks/constant"
 	"github.com/xjasonlyu/tun2socks/log"
 	"github.com/xjasonlyu/tun2socks/tunnel"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/gorilla/websocket"
-	"github.com/urfave/cli/v2"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 	}
 )
 
-func Start(addr, secret string, app *cli.App) error {
+func Start(addr, secret string) error {
 	r := chi.NewRouter()
 
 	c := cors.New(cors.Options{
@@ -37,21 +37,12 @@ func Start(addr, secret string, app *cli.App) error {
 	})
 
 	r.Use(c.Handler)
-
-	hello := func(w http.ResponseWriter, r *http.Request) {
-		render.JSON(w, r, render.M{"hello": app.Name})
-	}
-
-	version := func(w http.ResponseWriter, r *http.Request) {
-		render.JSON(w, r, render.M{"version": app.Version})
-	}
-
 	r.Group(func(r chi.Router) {
 		r.Use(authenticator(secret))
 		r.Get("/", hello)
-		r.Get("/version", version)
 		r.Get("/logs", getLogs)
 		r.Get("/traffic", traffic)
+		r.Get("/version", version)
 		r.Mount("/connections", connectionRouter())
 	})
 
@@ -65,11 +56,11 @@ func Start(addr, secret string, app *cli.App) error {
 		return err
 	}
 
-	go func() {
-		_ = http.Serve(listener, r)
-	}()
+	return http.Serve(listener, r)
+}
 
-	return nil
+func hello(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, render.M{"hello": constant.Name})
 }
 
 func authenticator(secret string) func(http.Handler) http.Handler {
@@ -209,4 +200,8 @@ func traffic(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+}
+
+func version(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, render.M{"version": constant.Version})
 }
