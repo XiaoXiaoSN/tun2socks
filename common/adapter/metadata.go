@@ -2,10 +2,11 @@ package adapter
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"strconv"
 
-	"github.com/Dreamacro/clash/component/socks5"
+	"github.com/xjasonlyu/tun2socks/common/socks5"
 )
 
 const (
@@ -21,8 +22,9 @@ func (n Network) String() string {
 		return "tcp"
 	case UDP:
 		return "udp"
+	default:
+		return fmt.Sprintf("network(%d)", n)
 	}
-	return "unknown network"
 }
 
 func (n Network) MarshalText() ([]byte, error) {
@@ -38,7 +40,7 @@ type Metadata struct {
 	SrcPort uint16  `json:"sourcePort"`
 	MidPort uint16  `json:"dialerPort"`
 	DstPort uint16  `json:"destinationPort"`
-	Host    string  `json:"host"`
+	Host    string  `json:"host,omitempty"`
 }
 
 func (m *Metadata) DestinationAddress() string {
